@@ -14,7 +14,8 @@ STATE_FILE="${STATE_FILE:-.ferrobrew/sync-state.json}"
 OUT_DIR="${OUT_DIR:-.ferrobrew/sync}"
 mkdir -p "${OUT_DIR}"
 
-if ! git remote | grep -qx upstream; then
+if ! git remote | grep -qx upstream
+then
   git remote add upstream "${UPSTREAM_URL}"
 fi
 git fetch --quiet upstream "${UPSTREAM_BRANCH}"
@@ -22,7 +23,8 @@ NEW_SHA="$(git rev-parse "upstream/${UPSTREAM_BRANCH}")"
 
 LAST_SHA="$(python3 -c "import json; print(json.load(open('${STATE_FILE}')).get('last_synced_sha') or '')" 2>/dev/null || true)"
 
-if [[ -z "${LAST_SHA}" ]]; then
+if [[ -z "${LAST_SHA}" ]]
+then
   echo "No previous sync recorded; baseline established at ${NEW_SHA}. Nothing to port yet." \
     >"${OUT_DIR}/upstream-changes.md"
   : >"${OUT_DIR}/upstream-ruby.diff"
@@ -46,7 +48,8 @@ RANGE="${LAST_SHA}..${NEW_SHA}"
 
 git diff "${RANGE}" -- 'Library/Homebrew/**/*.rb' >"${OUT_DIR}/upstream-ruby.diff" 2>/dev/null || true
 
-if [[ -s "${OUT_DIR}/upstream-ruby.diff" ]]; then
+if [[ -s "${OUT_DIR}/upstream-ruby.diff" ]]
+then
   echo "new_sha=${NEW_SHA}"
   echo "has_changes=true"
 else

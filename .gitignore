@@ -236,3 +236,6 @@
 # ...but not its build output or the upstream-sync bot's scratch directory.
 /target
 /.ferrobrew/sync/
+
+# Workflow agent worktrees (created by parallel multi-agent runs).
+/.claude/worktrees/
