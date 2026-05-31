@@ -2,8 +2,13 @@ name: ferrobrew upstream sync (Claude)
 
 # Keeps the ferrobrew Rust port in sync with upstream Homebrew's Ruby. On a schedule it computes
 # the upstream Ruby diff since the last synced commit and asks Claude Code to port the relevant
-# changes into crates/ferrobrew, then opens a PR for human review. Requires the repo secret
-# ANTHROPIC_API_KEY (see FERROBREW.md). Disable by deleting this file or unsetting the secret.
+# changes into crates/ferrobrew, then opens a PR FOR REVIEW IN THIS FORK ONLY. Requires the repo
+# secret ANTHROPIC_API_KEY (see FERROBREW.md). Disable by deleting this file or unsetting the secret.
+#
+# SAFETY: ferrobrew is a standalone repo, not a contribution to Homebrew. This workflow must NEVER
+# open a pull request against the upstream Homebrew/brew repository. `gh pr create` defaults its
+# base to the parent of a fork, so PRs are pinned to this repository two ways: the GH_REPO env var
+# below, and explicit --repo/--base flags in the prompt.
 
 on:
   schedule:
@@ -47,13 +52,17 @@ jobs:
       - name: Port upstream changes with Claude
         if: steps.changes.outputs.has_changes == 'true' || github.event.inputs.force == 'true'
         uses: anthropics/claude-code-action@v1
+        env:
+          # Pin every `gh` call to this fork so a PR can never target upstream Homebrew/brew.
+          GH_REPO: ${{ github.repository }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You maintain "ferrobrew", a from-scratch Rust reimplementation of Homebrew (`brew`)
-            living in `crates/ferrobrew`. The original Homebrew Ruby under `Library/` is REFERENCE
-            ONLY (it will be deleted as parity is reached). Implementation-exact subsystem specs are
-            in `specs/`. ferrobrew is standalone — it never falls back to Ruby.
+            living in `crates/ferrobrew`. This is a STANDALONE repository, NOT a contribution to
+            Homebrew. The original Homebrew Ruby under `Library/` is REFERENCE ONLY (it is removed as
+            parity is reached). Implementation-exact subsystem specs are in `specs/`. ferrobrew is
+            standalone — it never falls back to Ruby.
 
             Upstream Homebrew's Ruby changed since our last sync. A summary is in
             `.ferrobrew/sync/upstream-changes.md`; the full Ruby diff is in
@@ -70,12 +79,21 @@ jobs:
                warnings`, then `cargo test --locked`. Fix anything you break before opening the PR.
             5. Set `last_synced_sha` to `${{ steps.changes.outputs.new_sha }}` in
                `.ferrobrew/sync-state.json`.
-            6. Commit to branch `ferrobrew/upstream-sync-${{ github.run_id }}` and open a PR titled
-               "ferrobrew: sync upstream Ruby changes" FOR HUMAN REVIEW — do not merge. In the body,
-               list what you ported, what you skipped and why, and any newly portable changes.
+            6. Commit to branch `ferrobrew/upstream-sync-${{ github.run_id }}` and open a pull
+               request FOR HUMAN REVIEW (do not merge).
+               CRITICAL: open it in THIS repository ONLY — NEVER against upstream Homebrew/brew.
+               `gh pr create` defaults a fork's base to the PARENT repo, so ALWAYS pass repo, base
+               and head explicitly:
+                 gh pr create --repo "${{ github.repository }}" \
+                   --base "${{ github.event.repository.default_branch }}" \
+                   --head "ferrobrew/upstream-sync-${{ github.run_id }}" \
+                   --title "ferrobrew: sync upstream Ruby changes" --body "<summary>"
+               In the body, list what you ported, what you skipped and why, and any newly portable
+               changes.
 
-            If nothing is relevant to port, still bump `last_synced_sha` and open a small PR titled
-            "ferrobrew: advance upstream sync marker" so the next run starts from this SHA.
+            If nothing is relevant to port, still bump `last_synced_sha` and open a small PR (same
+            --repo/--base/--head rules) titled "ferrobrew: advance upstream sync marker" so the next
+            run starts from this SHA.
           claude_args: |
             --max-turns 40
             --model claude-opus-4-8
