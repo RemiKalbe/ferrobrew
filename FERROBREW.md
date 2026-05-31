@@ -21,18 +21,26 @@ brew does — from the JSON API and precompiled `ghcr.io` bottles.
 
 Working today (`cargo run -p ferrobrew -- <cmd>`):
 
-- `ferrobrew config` — derives the `HOMEBREW_*` layout for the host (verified against a real
-  `/opt/homebrew` install) and reports the current bottle tag (e.g. `arm64_tahoe`).
-- `ferrobrew info <formula>` — fetches a formula from the live JSON API and prints its version,
-  dependencies, and the selected bottle URL + sha256 for the current platform.
+- `ferrobrew install <formula>` — resolves runtime dependencies and install order, downloads the
+  bottle from `ghcr.io`, verifies its sha256, extracts it into the Cellar, relocates it
+  (`@@HOMEBREW_*@@` placeholders + Mach-O `install_name_tool`/ad-hoc codesign on macOS, ELF
+  `patchelf` on Linux), links it into the prefix, and writes a byte-exact `INSTALL_RECEIPT.json`.
+  Verified end-to-end into a throwaway sandbox prefix for `any_skip_relocation` and `:any`
+  (relocated + codesigned) bottles — the installed binaries run.
+- `ferrobrew uninstall <formula>` — unlinks every installed version and removes the keg + opt link.
+- `ferrobrew list` — installed formula names.
+- `ferrobrew info <formula>` — version, dependencies, and the selected bottle for the platform.
+- `ferrobrew config` — the resolved `HOMEBREW_*` layout and current bottle tag.
 
-Implemented & unit-tested subsystems: configuration/path derivation, platform & bottle-tag
-detection, the formula/bottle JSON model, and a minimal API client.
+Unit-tested subsystems (126 tests): config/path derivation, platform/bottle-tag detection, JSON API
+client, formula/bottle model, dependency resolution & ordering, bottle download + sha256 + extract,
+relocation (text + Mach-O/ELF), keg linking, and `INSTALL_RECEIPT.json`.
 
-Next, toward `ferrobrew install <formula>` (see `specs/architecture.md` for the full milestone
-list): bottle download from `ghcr.io` (OCI blob + bearer auth) → sha256 verify → extract →
-relocate `@@HOMEBREW_*@@` placeholders (Mach-O + codesign on macOS, ELF/patchelf on Linux) → keg
-linking into the prefix → `INSTALL_RECEIPT.json` → dependency resolution & ordering.
+Known limitation: a bottle built for a concrete cellar (e.g. `/opt/homebrew/Cellar`) installs only
+to a matching prefix; cross-prefix relocation of concrete-path (non-placeholder) bottles is not yet
+implemented (it errors clearly rather than shipping a broken keg). Source builds, casks, services,
+and the remaining commands (`upgrade`, `outdated`, `search`, …) are future work — see
+`specs/architecture.md`.
 
 ## Build & test
 
