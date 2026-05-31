@@ -14,8 +14,14 @@
 pub mod api;
 pub mod bottle;
 pub mod config;
+pub mod deps;
+pub mod download;
 pub mod error;
 pub mod formula;
+pub mod install;
+pub mod keg;
+pub mod relocate;
 pub mod system;
+pub mod tab;
 
 pub use error::{FerroError, Result};

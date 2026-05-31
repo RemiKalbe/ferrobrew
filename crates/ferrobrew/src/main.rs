@@ -21,6 +21,7 @@ fn main() -> ExitCode {
             Ok(())
         }
         "info" => info(rest.first()),
+        "install" => install_cmd(rest),
         "" => Err(FerroError::Other("no command given".into())),
         other => Err(FerroError::Unsupported(format!("command '{other}'"))),
     };
@@ -76,4 +77,15 @@ fn info(name: Option<&String>) -> Result<()> {
         None => println!("no bottle available for {tag}"),
     }
     Ok(())
+}
+
+/// Install one or more formulae (and their runtime dependencies) from bottles.
+fn install_cmd(names: &[String]) -> Result<()> {
+    if names.is_empty() {
+        return Err(FerroError::Other(
+            "usage: ferrobrew install <formula>...".into(),
+        ));
+    }
+    let config = Config::from_env();
+    ferrobrew::install::installer::install(&config, names)
 }

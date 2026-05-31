@@ -1,5 +1,7 @@
 //! Bottle metadata from the JSON API and selection of the bottle for a platform tag.
 
+pub mod ghcr;
+
 use std::collections::HashMap;
 
 use serde::Deserialize;
