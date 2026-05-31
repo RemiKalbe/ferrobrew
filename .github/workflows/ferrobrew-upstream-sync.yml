@@ -1,0 +1,82 @@
+name: ferrobrew upstream sync (Claude)
+
+# Keeps the ferrobrew Rust port in sync with upstream Homebrew's Ruby. On a schedule it computes
+# the upstream Ruby diff since the last synced commit and asks Claude Code to port the relevant
+# changes into crates/ferrobrew, then opens a PR for human review. Requires the repo secret
+# ANTHROPIC_API_KEY (see FERROBREW.md). Disable by deleting this file or unsetting the secret.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run Claude even if no upstream Ruby changes are detected"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ferrobrew-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute upstream changes
+        id: changes
+        env:
+          UPSTREAM_URL: https://github.com/Homebrew/brew.git
+          UPSTREAM_BRANCH: main
+        run: bash scripts/ferrobrew-upstream-sync.sh | tee -a "$GITHUB_OUTPUT"
+
+      - name: Set up Rust
+        if: steps.changes.outputs.has_changes == 'true' || github.event.inputs.force == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Port upstream changes with Claude
+        if: steps.changes.outputs.has_changes == 'true' || github.event.inputs.force == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You maintain "ferrobrew", a from-scratch Rust reimplementation of Homebrew (`brew`)
+            living in `crates/ferrobrew`. The original Homebrew Ruby under `Library/` is REFERENCE
+            ONLY (it will be deleted as parity is reached). Implementation-exact subsystem specs are
+            in `specs/`. ferrobrew is standalone — it never falls back to Ruby.
+
+            Upstream Homebrew's Ruby changed since our last sync. A summary is in
+            `.ferrobrew/sync/upstream-changes.md`; the full Ruby diff is in
+            `.ferrobrew/sync/upstream-ruby.diff`. New upstream HEAD: `${{ steps.changes.outputs.new_sha }}`.
+
+            Do this:
+            1. Read the summary and diff. Find changes that affect behavior ferrobrew has ALREADY
+               ported (inspect `crates/ferrobrew/src/` and `specs/`).
+            2. Port ONLY those relevant changes into the Rust, faithfully and minimally. For changes
+               in subsystems not yet ported, do NOT build them from scratch — list them under
+               "Newly portable upstream changes" in the PR body for a human to scope.
+            3. Update `specs/` when an already-documented subsystem's behavior changed.
+            4. Keep CI green: `cargo fmt --all`, then `cargo clippy --all-targets --locked -- -D
+               warnings`, then `cargo test --locked`. Fix anything you break before opening the PR.
+            5. Set `last_synced_sha` to `${{ steps.changes.outputs.new_sha }}` in
+               `.ferrobrew/sync-state.json`.
+            6. Commit to branch `ferrobrew/upstream-sync-${{ github.run_id }}` and open a PR titled
+               "ferrobrew: sync upstream Ruby changes" FOR HUMAN REVIEW — do not merge. In the body,
+               list what you ported, what you skipped and why, and any newly portable changes.
+
+            If nothing is relevant to port, still bump `last_synced_sha` and open a small PR titled
+            "ferrobrew: advance upstream sync marker" so the next run starts from this SHA.
+          claude_args: |
+            --max-turns 40
+            --model claude-opus-4-8
+            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(cargo:*),Bash(git:*),Bash(gh:*)"

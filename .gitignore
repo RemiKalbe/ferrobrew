@@ -224,3 +224,15 @@
 
 # Ignore tmp files
 **/tmp/
+
+# Unignore the ferrobrew Rust port (a standalone reimplementation; see FERROBREW.md).
+!/Cargo.toml
+!/Cargo.lock
+!/crates
+!/specs
+!/scripts
+!/FERROBREW.md
+!/.ferrobrew
+# ...but not its build output or the upstream-sync bot's scratch directory.
+/target
+/.ferrobrew/sync/

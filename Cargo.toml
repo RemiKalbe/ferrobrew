@@ -1,0 +1,11 @@
+# ferrobrew — a from-scratch Rust reimplementation of Homebrew (`brew`).
+# The cloned Homebrew Ruby under Library/ is reference-only and is removed as ferrobrew reaches parity.
+[workspace]
+resolver = "2"
+members = ["crates/ferrobrew"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

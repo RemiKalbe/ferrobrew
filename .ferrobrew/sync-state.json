@@ -1,0 +1,6 @@
+{
+  "upstream": "https://github.com/Homebrew/brew.git",
+  "upstream_branch": "main",
+  "last_synced_sha": null,
+  "note": "Tracks how far the Claude-powered upstream-sync bot has reconciled the ferrobrew Rust port against Homebrew's Ruby. The first bot run sets a baseline; subsequent runs port the diff since this SHA and advance it via the PR they open."
+}
