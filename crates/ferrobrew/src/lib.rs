@@ -13,6 +13,7 @@
 
 pub mod api;
 pub mod bottle;
+pub mod commands;
 pub mod config;
 pub mod deps;
 pub mod download;

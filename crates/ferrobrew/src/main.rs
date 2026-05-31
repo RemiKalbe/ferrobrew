@@ -22,6 +22,8 @@ fn main() -> ExitCode {
         }
         "info" => info(rest.first()),
         "install" => install_cmd(rest),
+        "list" | "ls" => list_cmd(),
+        "uninstall" | "remove" | "rm" => uninstall_cmd(rest),
         "" => Err(FerroError::Other("no command given".into())),
         other => Err(FerroError::Unsupported(format!("command '{other}'"))),
     };
@@ -88,4 +90,24 @@ fn install_cmd(names: &[String]) -> Result<()> {
     }
     let config = Config::from_env();
     ferrobrew::install::installer::install(&config, names)
+}
+
+/// List installed formulae, one per line.
+fn list_cmd() -> Result<()> {
+    let config = Config::from_env();
+    for name in ferrobrew::commands::list(&config)? {
+        println!("{name}");
+    }
+    Ok(())
+}
+
+/// Unlink and remove one or more installed formulae.
+fn uninstall_cmd(names: &[String]) -> Result<()> {
+    if names.is_empty() {
+        return Err(FerroError::Other(
+            "usage: ferrobrew uninstall <formula>...".into(),
+        ));
+    }
+    let config = Config::from_env();
+    ferrobrew::commands::uninstall(&config, names)
 }
